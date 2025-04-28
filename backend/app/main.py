@@ -4,28 +4,44 @@ from typing import List
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from prometheus_fastapi_instrumentator import Instrumentator
+from fastapi.middleware.cors import CORSMiddleware
+
 import os
 
+# ------------------------
 # App Initialization
+# ------------------------
 app = FastAPI()
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=["*"],           
+  allow_methods=["*"],
+  allow_headers=["*"],
+  allow_credentials=True,
+)
 
-# MongoDB Secure Connection (with username/password)
-MONGO_HOST = os.environ.get("MONGO_HOST", "localhost")
+# ------------------------
+# MongoDB Secure Connection
+# ------------------------
+MONGO_HOST = os.environ.get("MONGO_HOST", "mongodb-service")
 MONGO_PORT = int(os.environ.get("MONGO_PORT", 27017))
 MONGO_DB = os.environ.get("MONGO_DB", "library")
 MONGO_USER = os.environ.get("MONGO_USER", "root")
 MONGO_PASSWORD = os.environ.get("MONGO_PASSWORD", "example")
 
-client = MongoClient(
-    f"mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/"
-)
+mongo_uri = f"mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/"
+client = MongoClient(mongo_uri)
 db = client[MONGO_DB]
 books_collection = db["books"]
 
+# ------------------------
 # Prometheus Instrumentation
+# ------------------------
 Instrumentator().instrument(app).expose(app)
 
+# ------------------------
 # Pydantic Models
+# ------------------------
 class Book(BaseModel):
     title: str
     author: str
@@ -34,7 +50,9 @@ class Book(BaseModel):
 class BookOut(Book):
     id: str
 
+# ------------------------
 # Routes
+# ------------------------
 
 @app.get("/books", response_model=List[BookOut])
 def list_books():
